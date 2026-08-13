@@ -5,7 +5,8 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
 import * as turf from '@turf/turf';
-import { Satellite, Map as MapIcon, Crosshair, LocateFixed } from 'lucide-react';
+import { Satellite, Map as MapIcon, Crosshair, LocateFixed, MapPin, Loader2 } from 'lucide-react';
+import { useReverseGeocode } from '../hooks/useReverseGeocode';
 
 const STREET_TILE = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const SATELLITE_TILE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
@@ -65,7 +66,11 @@ const DrawControl: React.FC<DrawControlProps> = ({ onCreated, onDeleted, initial
             edit: {
                 featureGroup: drawnItems,
                 remove: true,
-                edit: true,
+                // NOTE: must be an object (or `false`), not boolean `true` - leaflet-draw
+                // does `options.edit.featureGroup = ...` internally, which throws
+                // "Cannot create property 'selectedPathOptions' on boolean 'true'" if this
+                // is a primitive boolean instead of an object.
+                edit: {},
             },
             draw: {
                 marker: false,
@@ -183,6 +188,7 @@ const PolygonMapSelector: React.FC<PolygonMapSelectorProps> = ({
     const [gpsMarker, setGpsMarker] = useState<[number, number] | null>(null);
     const [layer, setLayer] = useState<'satellite' | 'street'>('satellite');
     const [hoverLatLng, setHoverLatLng] = useState<[number, number] | null>(null);
+    const { result: hoverPlace, loading: hoverPlaceLoading } = useReverseGeocode(hoverLatLng);
 
     // Determine sensible default center: initial polygon centroid > provided default > Monrovia, Liberia
     let center: [number, number] = defaultCenter || [6.3156, -10.8074];
@@ -245,12 +251,29 @@ const PolygonMapSelector: React.FC<PolygonMapSelectorProps> = ({
                 Use the polygon tool (top-left of map) to draw the farm boundary
             </div>
 
-            {/* Live hover coordinate readout */}
-            <div className="absolute bottom-2.5 right-2.5 z-[1000] bg-slate-900/85 text-white text-[11px] font-mono rounded-md px-2.5 py-1.5 flex items-center gap-1.5 pointer-events-none">
-                <Crosshair className="h-3 w-3 text-green-400" />
-                {hoverLatLng
-                    ? `${hoverLatLng[0].toFixed(6)}, ${hoverLatLng[1].toFixed(6)}`
-                    : 'Hover map to see coordinates'}
+            {/* Live hover coordinate + resolved place-name readout */}
+            <div className="absolute bottom-2.5 right-2.5 z-[1000] bg-slate-900/85 text-white text-[11px] rounded-md px-2.5 py-1.5 flex flex-col items-end gap-0.5 pointer-events-none max-w-[260px]">
+                {hoverLatLng ? (
+                    <>
+                        <span className="flex items-center gap-1.5 font-mono">
+                            <Crosshair className="h-3 w-3 text-green-400 flex-shrink-0" />
+                            {hoverLatLng[0].toFixed(6)}, {hoverLatLng[1].toFixed(6)}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-green-300 text-right leading-tight">
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            {hoverPlaceLoading && !hoverPlace ? (
+                                <span className="flex items-center gap-1"><Loader2 className="h-2.5 w-2.5 animate-spin" /> Locating...</span>
+                            ) : (
+                                <span className="truncate">{hoverPlace?.label || 'Unknown location'}</span>
+                            )}
+                        </span>
+                    </>
+                ) : (
+                    <span className="flex items-center gap-1.5 font-mono">
+                        <Crosshair className="h-3 w-3 text-green-400" />
+                        Hover map to see location
+                    </span>
+                )}
             </div>
         </div>
     );

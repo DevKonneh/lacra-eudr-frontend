@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, CircleMarker, Marker, useMap, useMapEvents, ScaleControl } from 'react-leaflet';
 import L from 'leaflet';
 import * as turf from '@turf/turf';
-import { Satellite, Map as MapIcon, Crosshair, Ruler } from 'lucide-react';
+import { Satellite, Map as MapIcon, Crosshair, Ruler, MapPin, Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+import { useReverseGeocode } from '../hooks/useReverseGeocode';
 
 type LatLng = [number, number];
 
@@ -81,6 +82,7 @@ const FarmMap: React.FC<FarmMapProps> = ({
 }) => {
     const [layer, setLayer] = useState<'satellite' | 'street'>(defaultLayer);
     const [hoverLatLng, setHoverLatLng] = useState<LatLng | null>(null);
+    const { result: hoverPlace, loading: hoverPlaceLoading } = useReverseGeocode(hoverLatLng);
 
     const { center, polygonPositions, hasLocation, areaHa } = useMemo(() => {
         if (!location || !location.coordinates) {
@@ -196,13 +198,30 @@ const FarmMap: React.FC<FarmMapProps> = ({
                 </div>
             )}
 
-            {/* Live hover coordinate readout */}
+            {/* Live hover coordinate + resolved place-name readout */}
             {showHoverReadout && (
-                <div className="absolute bottom-2 right-2 z-[1000] bg-slate-900/85 text-white text-[11px] font-mono rounded-md px-2.5 py-1.5 flex items-center gap-1.5 pointer-events-none">
-                    <Crosshair className="h-3 w-3 text-green-400" />
-                    {hoverLatLng
-                        ? `${hoverLatLng[0].toFixed(6)}, ${hoverLatLng[1].toFixed(6)}`
-                        : 'Hover map to see coordinates'}
+                <div className="absolute bottom-2 right-2 z-[1000] bg-slate-900/85 text-white text-[11px] rounded-md px-2.5 py-1.5 flex flex-col items-end gap-0.5 pointer-events-none max-w-[260px]">
+                    {hoverLatLng ? (
+                        <>
+                            <span className="flex items-center gap-1.5 font-mono">
+                                <Crosshair className="h-3 w-3 text-green-400 flex-shrink-0" />
+                                {hoverLatLng[0].toFixed(6)}, {hoverLatLng[1].toFixed(6)}
+                            </span>
+                            <span className="flex items-center gap-1.5 text-green-300 text-right leading-tight">
+                                <MapPin className="h-3 w-3 flex-shrink-0" />
+                                {hoverPlaceLoading && !hoverPlace ? (
+                                    <span className="flex items-center gap-1"><Loader2 className="h-2.5 w-2.5 animate-spin" /> Locating...</span>
+                                ) : (
+                                    <span className="truncate">{hoverPlace?.label || 'Unknown location'}</span>
+                                )}
+                            </span>
+                        </>
+                    ) : (
+                        <span className="flex items-center gap-1.5 font-mono">
+                            <Crosshair className="h-3 w-3 text-green-400" />
+                            Hover map to see location
+                        </span>
+                    )}
                 </div>
             )}
         </div>
