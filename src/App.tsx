@@ -20,6 +20,7 @@ import SatelliteAnalysis from './pages/SatelliteAnalysis';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import PendingApprovals from './pages/admin/PendingApprovals';
+import GeoIdAdmin from './pages/admin/GeoIdAdmin';
 import RoleList from './pages/admin/RoleList';
 import RoleForm from './pages/admin/RoleForm';
 import UserList from './pages/admin/UserList';
@@ -44,6 +45,7 @@ const PrivateRoute = () => {
 };
 
 import PublicBatchDetails from './pages/PublicBatchDetails';
+import PublicFarmScan from './pages/PublicFarmScan';
 
 function App() {
   return (
@@ -54,6 +56,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/public/farmers/:id" element={<PublicFarmerProfile />} />
           <Route path="/public/batches/:id" element={<PublicBatchDetails />} />
+          <Route path="/public/farm-scan/:id" element={<PublicFarmScan />} />
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
@@ -78,6 +81,7 @@ function App() {
               <Route path="admin/enforcement" element={<EnforcementList />} />
               <Route path="satellite" element={<SatelliteAnalysis />} />
               <Route path="admin/approvals" element={<PendingApprovals />} />
+              <Route path="admin/geoid" element={<GeoIdAdmin />} />
               <Route path="admin/roles" element={<RoleList />} />
               <Route path="admin/roles/new" element={<RoleForm />} />
               <Route path="admin/roles/:id" element={<RoleForm />} />

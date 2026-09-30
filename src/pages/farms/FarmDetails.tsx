@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getFarm, type FarmWithFarmer } from '../../api/farms';
-import { ArrowLeft, Loader2, MapPin, Calendar, FileText, User, Sprout, Ruler } from 'lucide-react';
+import { ArrowLeft, Loader2, MapPin, Calendar, FileText, User, Sprout, Ruler, QrCode, Copy, ExternalLink, CheckCheck, AlertTriangle } from 'lucide-react';
 import FarmMap from '../../components/FarmMap';
 import FarmRiskPanel from '../../components/FarmRiskPanel';
+import { QRCodeCanvas } from 'qrcode.react';
 
 interface FarmDocument {
     id: string;
@@ -19,6 +20,8 @@ const FarmDetails: React.FC = () => {
     const [documents, setDocuments] = useState<FarmDocument[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [geoIdCopied, setGeoIdCopied] = useState(false);
+    const [showFarmQr, setShowFarmQr] = useState(false);
 
     const fetchFarm = async () => {
         if (!id) return;
@@ -64,6 +67,15 @@ const FarmDetails: React.FC = () => {
 
     const areaLabel = farm.totalAreaHa ? `${farm.totalAreaHa} ha` : 'Not measured';
     const boundaryType = farm.location?.type === 'Polygon' ? 'GPS Polygon Boundary' : farm.location?.type === 'Point' ? 'Single GPS Point' : 'Not captured';
+
+    const farmScanUrl = `${window.location.origin}/public/farm-scan/${farm.id}`;
+
+    const copyGeoId = async () => {
+        if (!farm.geoId) return;
+        await navigator.clipboard?.writeText(farm.geoId);
+        setGeoIdCopied(true);
+        setTimeout(() => setGeoIdCopied(false), 2000);
+    };
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">
@@ -159,6 +171,142 @@ const FarmDetails: React.FC = () => {
                             <span className="text-gray-500">Extension Services?</span>
                             <span className="font-medium text-gray-900">{farm.extensionServices ? 'Yes' : 'No'}</span>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* GeoID + Farm QR Code Panel */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* GeoID Identity Card */}
+                <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
+                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-green-50 to-white">
+                        <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-green-500" />
+                            FAO GeoID — Farm Identity
+                        </h3>
+                        {farm.geoId && (
+                            <span className="text-[10px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full border border-green-200">
+                                REGISTERED
+                            </span>
+                        )}
+                    </div>
+                    <div className="p-5 space-y-3">
+                        {farm.geoId ? (
+                            <>
+                                <div>
+                                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">GeoID (Anonymous Farm Identifier)</p>
+                                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                                        <code className="flex-1 text-xs font-mono text-gray-800 break-all">{farm.geoId}</code>
+                                        <button
+                                            onClick={copyGeoId}
+                                            className="flex-none text-gray-400 hover:text-green-600 transition-colors"
+                                            title="Copy GeoID"
+                                        >
+                                            {geoIdCopied ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+                                {farm.geoIdUri && (
+                                    <div>
+                                        <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">Resolver URI</p>
+                                        <a
+                                            href={farm.geoIdUri}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-xs text-green-700 hover:text-green-900 hover:underline font-mono break-all"
+                                        >
+                                            {farm.geoIdUri}
+                                            <ExternalLink className="h-3 w-3 flex-none" />
+                                        </a>
+                                    </div>
+                                )}
+                                <p className="text-[11px] text-gray-400">
+                                    The GeoID is a content-addressed, anonymous identifier generated by FAO OpenForis from this farm's GPS boundary. Same geometry always produces the same GeoID — it contains no personal data and is safe to share with traders.
+                                </p>
+                            </>
+                        ) : (
+                            <div className="space-y-3">
+                                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                    <AlertTriangle className="h-5 w-5 text-amber-500 flex-none mt-0.5" />
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-semibold text-amber-800">GeoID Pending — Not yet minted</p>
+                                        <p className="text-xs text-amber-700">
+                                            This farm does not have a FAO GeoID yet. GeoIDs are minted automatically for new farms. If this farm was registered before GeoID support was enabled, run the backfill.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-1">
+                                    <p className="text-xs font-semibold text-gray-700">What is a GeoID?</p>
+                                    <p className="text-xs text-gray-500">
+                                        A GeoID is a content-addressed, anonymous identifier generated by FAO OpenForis from this farm's GPS boundary. It contains no personal data and is safe to share with EUDR traders and regulators.
+                                    </p>
+                                </div>
+                                <Link
+                                    to="/admin/geoid"
+                                    className="inline-flex items-center gap-2 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors"
+                                >
+                                    Go to Admin → GeoID Manager to run Backfill
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Farm QR Code */}
+                <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
+                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white">
+                        <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                            <QrCode className="h-4 w-4 text-blue-600" />
+                            Farm QR Code
+                        </h3>
+                        <button
+                            onClick={() => setShowFarmQr(!showFarmQr)}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-full transition-colors"
+                        >
+                            {showFarmQr ? 'Hide QR' : 'Show QR'}
+                        </button>
+                    </div>
+                    <div className="p-5">
+                        {showFarmQr ? (
+                            <div className="flex items-start gap-5">
+                                <div className="flex-none">
+                                    {farm.farmQrCode ? (
+                                        <img src={farm.farmQrCode} alt="Farm QR Code" className="h-36 w-36 border border-gray-200 rounded-lg" />
+                                    ) : (
+                                        <div className="h-36 w-36 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
+                                            <QRCodeCanvas value={farmScanUrl} size={128} level="M" includeMargin />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 space-y-2">
+                                    <p className="text-xs text-gray-600">
+                                        This QR links to the farm's public verification endpoint. When scanned:
+                                    </p>
+                                    <ul className="text-xs text-gray-500 space-y-1">
+                                        <li className="flex items-start gap-1.5"><span className="text-green-600 font-bold mt-0.5">·</span> <span><b>WHIMO / traders</b> see geo data only (no PII) — ready for EUDR due diligence</span></li>
+                                        <li className="flex items-start gap-1.5"><span className="text-green-600 font-bold mt-0.5">·</span> <span><b>LACRA staff</b> append <code className="bg-gray-100 px-1 rounded">?view=full</code> for full farmer profile</span></li>
+                                    </ul>
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                                        <p className="text-[10px] text-gray-400 mb-0.5">Scan URL</p>
+                                        <a href={farmScanUrl} target="_blank" rel="noreferrer" className="text-xs font-mono text-blue-600 hover:underline break-all">{farmScanUrl}</a>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard?.writeText(farmScanUrl);
+                                            alert('Farm scan URL copied to clipboard');
+                                        }}
+                                        className="text-xs font-medium text-gray-600 border border-gray-200 hover:bg-gray-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                                    >
+                                        <Copy className="h-3.5 w-3.5" /> Copy Link
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-4">
+                                <QrCode className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">Click <b>Show QR</b> to display the farm's shareable QR code for EUDR due diligence.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

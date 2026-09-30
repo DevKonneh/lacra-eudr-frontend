@@ -26,6 +26,12 @@ export interface Farm {
     farmPhotos?: string[];
     riskLevel?: 'Low' | 'Medium' | 'High';
     lastRiskAssessmentDate?: string;
+    /** FAO GeoID — stable anonymous UUID for this farm's geometry */
+    geoId?: string;
+    /** FAO GeoID resolver URI (e.g. https://data.fao.org/geoid/view/<uuid>) */
+    geoIdUri?: string;
+    /** Base-64 data-URL of the farm-level QR code encoding /api/public/farm-scan/:id */
+    farmQrCode?: string;
     createdAt: string;
     updatedAt?: string;
 }
