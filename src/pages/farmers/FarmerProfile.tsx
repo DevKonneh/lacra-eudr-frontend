@@ -9,7 +9,7 @@ import { getCustodyHistory, type CustodyHistoryData } from '../../api/transfers'
 import {
     ArrowLeft, ShieldCheck, ShieldAlert, ShieldQuestion, Edit2, Save, X, MoreHorizontal,
     QrCode, Share2, FileText, Image as ImageIcon, AlertTriangle, CheckCircle2,
-    Sprout, FolderOpen, Download, Loader2, ChevronDown, Package
+    Sprout, FolderOpen, Download, Loader2, ChevronDown, Package, Copy, CheckCheck, ExternalLink
 } from 'lucide-react';
 import FarmMap from '../../components/FarmMap';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -83,6 +83,8 @@ const FarmerProfile: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [showQr, setShowQr] = useState(false);
+    const [showFarmQr, setShowFarmQr] = useState(false);
+    const [geoIdCopied, setGeoIdCopied] = useState(false);
 
     const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
     const [documents, setDocuments] = useState<FarmDocument[]>([]);
@@ -225,6 +227,12 @@ const FarmerProfile: React.FC = () => {
             console.error('Error updating farmer status', err);
             alert('Failed to update farmer status');
         }
+    };
+
+    const copyGeoId = async (geoId: string) => {
+        await navigator.clipboard?.writeText(geoId);
+        setGeoIdCopied(true);
+        setTimeout(() => setGeoIdCopied(false), 2000);
     };
 
     // --- Derived selected farm (must be computed before hooks below so its identity is stable) ---
@@ -474,14 +482,89 @@ const FarmerProfile: React.FC = () => {
                                 <Field label="Farm Status" value={selectedFarm.farmRegistrationStatus || 'Active'} />
                                 <Field label="Coordinate System" value="WGS 84" />
                             </div>
-                            <div className="flex-none w-40">
+                            <div className="flex-none w-40 space-y-3">
                                 <div className="h-32 w-40 rounded-lg overflow-hidden border border-gray-200">
                                     <FarmMap location={selectedFarm.location} height="100%" showLayerToggle={false} showHoverReadout={false} scrollWheelZoom={false} dragging={false} zoomControl={false} />
                                 </div>
-                                <p className="text-[10px] text-gray-400 mt-1">Farm GPS Center</p>
+                                <p className="text-[10px] text-gray-400">Farm GPS Center</p>
                                 <p className="text-[11px] font-mono text-gray-600">{geo.center ? `${geo.center[0].toFixed(4)}, ${geo.center[1].toFixed(4)}` : 'N/A'}</p>
-                                <p className="text-[10px] text-gray-400 mt-1">Mapped By</p>
+                                <p className="text-[10px] text-gray-400">Mapped By</p>
                                 <p className="text-[11px] text-gray-600">{farmer.enumeratorName || 'N/A'}</p>
+
+                                {/* Farm QR Code */}
+                                <div className="border-t border-gray-100 pt-2">
+                                    <button
+                                        onClick={() => setShowFarmQr(!showFarmQr)}
+                                        className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-800"
+                                    >
+                                        <QrCode className="h-3 w-3" />
+                                        {showFarmQr ? 'Hide Farm QR' : 'Farm QR Code'}
+                                    </button>
+                                    {showFarmQr && (
+                                        <div className="mt-1.5">
+                                            {selectedFarm.farmQrCode ? (
+                                                <img
+                                                    src={selectedFarm.farmQrCode}
+                                                    alt="Farm QR"
+                                                    className="w-full rounded border border-gray-200"
+                                                />
+                                            ) : (
+                                                <div className="bg-white border border-gray-200 rounded p-1">
+                                                    <QRCodeCanvas
+                                                        value={`${window.location.origin}/public/farm-scan/${selectedFarm.id}`}
+                                                        size={128}
+                                                        level="M"
+                                                        includeMargin
+                                                    />
+                                                </div>
+                                            )}
+                                            <p className="text-[9px] text-gray-400 mt-1 leading-tight">Geo-only QR for EUDR traders (no PII)</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* GeoID Badge — always visible */}
+                                <div className="border-t border-gray-100 pt-2 space-y-1">
+                                    <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">FAO GeoID</p>
+                                    {selectedFarm.geoId ? (
+                                        <>
+                                            <div className="flex items-center gap-1 bg-green-50 border border-green-200 rounded px-1.5 py-1">
+                                                <code className="text-[9px] font-mono text-green-800 flex-1 break-all leading-tight">{selectedFarm.geoId.slice(0, 18)}…</code>
+                                                <button
+                                                    onClick={() => copyGeoId(selectedFarm.geoId!)}
+                                                    className="flex-none text-green-500 hover:text-green-700"
+                                                    title="Copy GeoID"
+                                                >
+                                                    {geoIdCopied ? <CheckCheck className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                                </button>
+                                            </div>
+                                            {selectedFarm.geoIdUri && (
+                                                <a
+                                                    href={selectedFarm.geoIdUri}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="flex items-center gap-0.5 text-[9px] text-green-600 hover:underline"
+                                                >
+                                                    <ExternalLink className="h-2.5 w-2.5" /> View on FAO
+                                                </a>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="bg-amber-50 border border-amber-200 rounded px-1.5 py-1.5 space-y-1">
+                                            <div className="flex items-center gap-1">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse flex-none" />
+                                                <span className="text-[9px] font-semibold text-amber-700">Pending — Not yet minted</span>
+                                            </div>
+                                            <p className="text-[8.5px] text-amber-600 leading-tight">
+                                                Run GeoID Backfill in{' '}
+                                                <Link to="/admin/geoid" className="underline font-semibold hover:text-amber-800">
+                                                    Admin → GeoID Manager
+                                                </Link>
+                                                {' '}to mint this farm's ID.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -591,6 +674,7 @@ const FarmerProfile: React.FC = () => {
                         {[
                             { label: 'GPS verified', ok: geo.points.length > 0 },
                             { label: 'Polygon verified', ok: selectedFarm?.location?.type === 'Polygon' },
+                            { label: 'GeoID minted (FAO)', ok: !!selectedFarm?.geoId },
                             { label: 'Photos verified', ok: !!selectedFarm?.farmPhotos && selectedFarm.farmPhotos.length > 0 },
                             { label: 'Documents verified', ok: documents.length > 0 && documents.every(d => d.status === 'Valid') },
                             { label: 'Farm legally owned', ok: !!selectedFarm?.ownershipType },

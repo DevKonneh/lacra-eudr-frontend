@@ -152,6 +152,11 @@ export const navigationMenu: NavigationItem[] = [
                 icon: Truck
             },
             {
+                label: 'GeoID Administration',
+                path: '/admin/geoid',
+                icon: Globe
+            },
+            {
                 label: 'Audit Logs',
                 path: '/audit' // Placeholder
             }
